@@ -9,6 +9,11 @@ if exists('g:loaded_rails') || &cp || v:version < 800
 endif
 let g:loaded_rails = 1
 
+" Turn on $LOAD_PATH detection in the ruby ftplugin
+if !exists('g:ruby_exec')
+  let g:ruby_exec = 1
+endif
+
 " Utility Functions {{{1
 
 function! s:error(str)
@@ -86,17 +91,6 @@ if !exists('g:loaded_projectionist')
   runtime! plugin/projectionist.vim
 endif
 
-function! s:doau_user(arg) abort
-  if exists('#User#'.a:arg)
-    try
-      let [modelines, &modelines] = [&modelines, 0]
-      exe 'doautocmd User' a:arg
-    finally
-      let &modelines = modelines
-    endtry
-  endif
-endfunction
-
 augroup railsPluginDetect
   autocmd!
 
@@ -106,13 +100,11 @@ augroup railsPluginDetect
         \ endif
   autocmd VimEnter *
         \ if get(g:, 'rails_vim_enter', get(g:, 'projectionist_vim_enter', 1)) &&
-        \     empty(expand("<amatch>")) && RailsDetect(getcwd()) |
+        \     argc() == 0 && RailsDetect(getcwd()) |
         \   call rails#buffer_setup() |
-        \   call s:doau_user('BufEnterRails') |
         \ endif
   autocmd FileType netrw
         \ if RailsDetect(get(b:, 'netrw_curdir', @%)) |
-        \   call s:doau_user('BufEnterRails') |
         \ endif
   autocmd FileType * if RailsDetect() | call rails#buffer_setup() | endif
 
@@ -147,10 +139,6 @@ let g:db_adapter_rails = 'rails#db_'
 " }}}1
 " abolish.vim support {{{1
 
-function! s:function(name)
-    return function(substitute(a:name,'^s:',matchstr(expand('<sfile>'), '<SNR>\d\+_'),''))
-endfunction
-
 augroup railsPluginAbolish
   autocmd!
   autocmd VimEnter * call s:abolish_setup()
@@ -159,10 +147,10 @@ augroup END
 function! s:abolish_setup()
   if exists('g:Abolish') && has_key(g:Abolish,'Coercions')
     if !has_key(g:Abolish.Coercions,'l')
-      let g:Abolish.Coercions.l = s:function('s:abolish_l')
+      let g:Abolish.Coercions.l = function('s:abolish_l')
     endif
-    if !has_key(g:Abolish.Coercions,'t')
-      let g:Abolish.Coercions.t = s:function('s:abolish_t')
+    if !has_key(g:Abolish.Coercions,'t') || string(g:Abolish.Coercions.t) =~# "'<SNR>[0-9]*_titlecase'"
+      let g:Abolish.Coercions.t = function('s:abolish_t')
     endif
   endif
 endfunction
